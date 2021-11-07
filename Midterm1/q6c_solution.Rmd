@@ -1,0 +1,40 @@
+---
+title: "Midterm1_Problem6c_Simulation"
+author: "Yaniv Bronshtein"
+date: "10/11/2021"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+```{r}
+n_trials <- 10000
+p_vec <- seq(0.1, 1, by = 0.2)
+for (p in p_vec) {
+  Y <- dbinom(x=1:n_trials, size=n_trials, prob=p)
+  
+  Z <- vector(length = n_trials)
+  Z.sd <- vector(length = n_trials)
+  for (i in 1:n_trials) {
+    Z[i] <- cos(2 * pi * Y[i] / i)
+    Z.sd[i] <- sd(Z[1:i])
+  }
+  
+  
+  title <- paste0('Zn vs 1 / sqrt(n) where number of trials=',n_trials,', and p=',p)
+  plot(
+    1/sqrt(1:n_trials),
+    Z.sd,
+    type = 'l',
+    main=title, 
+    xlab = '1 / sqrt(n)',
+    ylab = 'Zn'
+  )
+  
+  grid()
+}
+
+```
