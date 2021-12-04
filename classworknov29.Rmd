@@ -1,0 +1,38 @@
+---
+title: "InClass"
+author: "Yaniv Bronshtein"
+date: "11/29/2021"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tourr)
+```
+
+**Load in necessary libraries**
+```{r}
+
+
+```
+
+
+```{r}
+v1 <- sample(150,80)
+iris.train <- iris[v1,][,1:4]
+iris.test <- iris[-v1,][,1:4]
+
+pairs(iris.train)
+
+```
+
+
+**Let's look at the 3**
+```{r}
+animate(iris.train)
+
+```
+

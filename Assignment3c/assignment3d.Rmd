@@ -1,0 +1,414 @@
+---
+title: "Probability and Inference HW 3b"
+author: "Yaniv Bronshtein(yb262), Vipul Ishwarchandra Gharde(vig4), Animesh Sharma(as3592),Wanying Mo(wm318), Fan Shen(FS470), Toshitt Ahuja(ta498), Venkata Datla(vkd 20), Aditya Maheshwari(am2971)"
+date: "11/8/2021"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+**Import the necessary libraries**
+```{r}
+library(purrr) 
+library(MASS)
+library(DIRECT)
+```
+
+**Functions to calculate first and second derivatives for Newton Raphson method**
+```{r}
+f1 <- function(a,n,x){
+  return(-n*digamma(a)- n*log(mean(x)) + n*log(a) + sum(log(x)))
+}
+f2 <- function(a,n){
+  return(-n*trigamma(a) + n/a)
+}
+```
+
+**This function is used to calculate parameters for**
+**different distributions of data using mean and variance**
+```{r}
+
+get_dist_params <- function(dist, data) { 
+  
+  mu <- mean(data); var <- var(data)
+  # For the beta distribution, run Newton-Raphson 20 times 
+  if (dist=="beta") { 
+    x <- data; a2 <- 1; b2 <- 1
+    for (i in 1:20){
+    # Matrices to hold estimates
+      estim <- matrix(c(a2,b2), nrow=2)
+    # Compute the partials with respect to alpha and beta 
+      f<- matrix(c(digamma(a2+b2) - digamma(a2) + mean(log(x)),
+                   digamma(a2+b2)- digamma(b2)+ mean(log(1-x))), nrow=2) 
+      
+      # Compute partial derivatives by solving the Jacobian matrix
+      J <- solve(matrix(c(trigamma(a2+b2)-trigamma(a2), 
+                          trigamma(a2+b2), trigamma(a2+b2),
+                          trigamma(a2+b2)-trigamma(b2)), nrow=2,ncol=2)) 
+      
+      f2 <- estim - J%*%f
+      a2 <- f2[1,]
+      b2 <- f2[2,]
+    }
+    cat("Beta dist alpha:",a2,'\n') 
+    cat("Beta dist beta: ",b2,'\n')
+  }
+  else if (dist == "bernoulli") {
+    cat("Bernoulli p:", mu,'\n')
+  }
+  else if (dist=="binomial") { 
+    cat("Binomial p: ", mu/length(data),'\n')
+  }
+  else if (dist == "exponential") {
+    cat("Exponential rate value:", 1/mu,'\n') 
+  }
+  # For gamma distribution, we run Newton-Raphson for 60 iterations
+  else if (dist=="gamma") { 
+    x <- data; n <- length(data); a <- 1
+    
+    for(i in 1:60){ 
+      a <- a - f1(a,n,x)/f2(a,n) 
+    }
+    # Beta value
+    b <- mean(x)/a
+    cat("Gamma alpha: ",a,'\n') 
+    cat("Gamma beta: ",1/b,'\n') 
+  }
+  else if (dist=="geometric") {
+    p <- 1/mu
+    cat("Geometric p: ", p,'\n')
+  }
+  else if (dist=="multinomial") {
+    n_row <- nrow(data); prob <- c(0,0,0,0);  
+    p <- data/length(data) 
+    prob <- rowSums(p)
+    cat('Multinomial prob: ',prob,'\n')
+  }
+  else if (dist=="multivariate_normal") {
+    mu <- colMeans(data) 
+    x_sub_mean <- data - mu
+    cov <- matrix(c(0,0,0,0),2,2)
+    for (i in 1:10000) {
+      prod <- x_sub_mean[i,] %*% t(x_sub_mean[i,])
+      cov <- cov + prod 
+    }
+    covariance <- round(cov / 10000, 3)
+    cat(covariance,'\n')
+    cat("Multivariate mean: ", mu," Multivariate Sigma: ", covariance,'\n')
+  }
+  else if (dist=="normal") {
+    cat("Normal Mean: value: ", mu,'\n')
+    cat("Normal Standard deviation: ", sqrt(var),'\n') 
+  }
+  else if (dist=="poisson") {
+    cat("Poisson Lambda: ", mu,'\n')
+  }
+  else if (dist=="uniform") {
+    cat("Uniform a: ",min(data)," Uniform b: ", max(data),'\n')
+  }
+}
+```
+**This function is used to calculate parameters for**
+**different distributions of data using mean and variance**
+```{r}
+options(warn=-1)
+get_kstest <- function(dist, data) { 
+  
+  mu <- mean(data); var <- var(data)
+  d<-c(0)
+  # For the beta distribution, run Newton-Raphson 20 times 
+  if (dist=="beta") { 
+    x <- data; a2 <- 1; b2 <- 1
+    for (i in 1:20){
+    # Matrices to hold estimates
+      estim <- matrix(c(a2,b2), nrow=2)
+    # Compute the partials with respect to alpha and beta 
+      f<- matrix(c(digamma(a2+b2) - digamma(a2) + mean(log(x)),
+                   digamma(a2+b2)- digamma(b2)+ mean(log(1-x))), nrow=2) 
+      
+      # Compute partial derivatives by solving the Jacobian matrix
+      J <- solve(matrix(c(trigamma(a2+b2)-trigamma(a2), 
+                          trigamma(a2+b2), trigamma(a2+b2),
+                          trigamma(a2+b2)-trigamma(b2)), nrow=2,ncol=2)) 
+      
+      f2 <- estim - J%*%f
+      a2 <- f2[1,]
+      b2 <- f2[2,]
+    }
+    for(i in 1:100){
+      yboot <- rbeta(10000, a2, b2)
+      d[i] <- ks.test(yboot,"pbeta",a2,b2)$statistic  #test against beta
+    }
+    d0 = ks.test(data,"pbeta",2, 8)$statistic
+    cat("d0 = ",d0,";d*mean = ", mean(d))
+  }
+  else if (dist == "bernoulli") {
+    p <- mu
+      for(i in 1:100){
+        yboot <- rbinom(1000,1,p)
+        d[i] <- ks.test(yboot,"pbinom",1,p)$statistic  #test against beta
+      }
+    d0 <- ks.test(data,"pbinom",1, 0.75)$statistic
+    cat("d0 = ",d0,";d*mean = ", mean(d))
+  }
+  else if (dist=="binomial") { 
+    p <- mu/(10*length(data))
+      for(i in 1:100){
+        yboot <- rbinom(100,1000,p)
+        d[i] <- ks.test(yboot,"pbinom",1000,p)$statistic  #test against beta
+      }
+    d0 <- ks.test(data,"pbinom",1000, 0.75)$statistic
+    cat("d0 = ",d0,";d*mean = ", mean(d))
+  }
+  else if (dist == "exponential") {
+    a <- 1/mu
+      for(i in 1:100){
+        yboot <- rexp(100000,a)
+        d[i] <- ks.test(yboot,"pexp",a)$statistic  #test against beta
+      }
+    d0 <- ks.test(data,"pexp",5)$statistic
+    cat("d0 = ",d0,";d*mean = ", mean(d))
+  }
+  # For gamma distribution, we run Newton-Raphson for 60 iterations
+  else if (dist=="gamma") { 
+    x <- data; n <- length(data); a <- 1
+    
+    for(i in 1:60){ 
+      a <- a - f1(a,n,x)/f2(a,n) 
+    }
+    # Beta value
+    b <- mean(x)/a
+    d0 = ks.test(data,"pgamma",2, 3)$statistic
+    for(i in 1:100){
+      yboot <- rgamma(100000, a, b)
+      d[i] <- ks.test(yboot,"pgamma",a,b)$statistic
+    }
+    cat("d0 = ",d0,";d*mean = ", mean(d))
+  }
+  else if (dist=="geometric") {
+    p <- 1/mu
+    d0 = ks.test(data,"pgeom",0.25)$statistic
+    for(i in 1:100){
+      yboot <- rgeom(100000,p)
+      d[i] <- ks.test(yboot,"pgeom",p)$statistic
+    }
+    cat("d0 = ",d0,";d*mean = ", mean(d))
+  }
+  else if (dist=="multinomial") {
+    n_row <- nrow(data); prob <- c(0,0,0,0);  
+    p <- data/length(data) 
+    prob <- rowSums(p)
+    cat('Multinomial prob: ',prob,'\n')
+  }
+  else if (dist=="multivariate_normal") {
+    mu <- colMeans(data) 
+    x_sub_mean <- data - mu
+    cov <- matrix(c(0,0,0,0),2,2)
+    for (i in 1:10000) {
+      prod <- x_sub_mean[i,] %*% t(x_sub_mean[i,])
+      cov <- cov + prod 
+    }
+    covariance <- round(cov / 10000, 3)
+    cat(covariance,'\n')
+    cat("Multivariate mean: ", mu," Multivariate Sigma: ", covariance,'\n')
+  }
+  else if (dist=="normal") {
+    std <- sqrt(var)
+    d0 = ks.test(data,"pnorm",20,2)$statistic
+    for(i in 1:100){
+      yboot <- rnorm(100000,mu, std)
+      d[i] <- ks.test(yboot,"pnorm",mu,std)$statistic
+    }
+    cat("d0 = ",d0,";d*mean = ", mean(d))
+  }
+  else if (dist=="poisson") {
+    d0 <- ks.test(data,"ppois",3)$statistic
+    l <- mu
+     for(i in 1:100){
+       yboot <- rpois(40000,lambda = l)
+       d[i] <- ks.test(yboot,"ppois",l)$statistic
+     }
+     cat("d0 = ",d0,";d*mean = ", mean(d))
+  }
+  else if (dist=="uniform") {
+    d0 <- ks.test(data,"punif",1,100)$statistic
+    a <- min(data)
+    b <- max(data)
+     for(i in 1:100){
+       yboot <- runif(1000000,a,b)
+       d[i] <- ks.test(yboot,"punif",a,b)$statistic
+     }
+     cat("d0 = ",d0,";d*mean = ", mean(d))
+  }
+}
+```
+
+**Bernoulli Distribution**
+```{r}
+options(warn=-1)
+bernoulli_data <- rbinom(1000, 1, 0.75) 
+dist <- 'bernoulli' 
+p <- mean(bernoulli_data)
+get_dist_params(dist,bernoulli_data)
+get_kstest(dist,bernoulli_data)
+```
+
+**Beta Distribution**
+```{r}
+options(warn=-1)
+beta_data <- rbeta(10000, 2, 8) 
+dist <- 'beta'
+get_dist_params(dist,beta_data)
+get_kstest(dist,beta_data)
+
+```
+
+
+**Binomial Distribution**
+```{r}
+options(warn=-1)
+binom_data <- rbinom(100, 1, 0.5) 
+dist <- 'binomial' 
+get_dist_params(dist,binom_data)
+get_kstest(dist,binom_data)
+#bayesian
+palpha=1
+pbeta=1
+r=1
+#posterior parameters
+poalpha=palpha+sum(binom_data)
+pobeta=pbeta+length(binom_data)-sum(binom_data)
+psample=rbeta(1000,poalpha,pobeta)
+plot(density(psample),main='Binomial')
+```
+
+**Exponential Distribution**
+```{r}
+options(warn=-1)
+exp_data <- rexp(100, 1) 
+dist <- 'exponential'
+get_dist_params(dist,exp_data)
+get_kstest(dist,exp_data)
+#Bayesian
+#prior distribution parameters
+palpha=1
+pbeta=1
+#posterior parameters
+poalpha=palpha+length(exp_data)
+pobeta=pbeta+sum(exp_data)
+psample=rgamma(1000,poalpha,pobeta)
+plot(density(psample),main='Exponential')
+```
+
+**Gamma Distribution**
+```{r}
+options(warn=-1)
+gamma_data <- rgamma(10000, 2, 3) 
+dist <- 'gamma'
+get_dist_params(dist,gamma_data)
+get_kstest(dist,gamma_data)
+```
+
+**Geometric Distribution**
+```{r}
+options(warn=-1)
+geom_data <- rgeom(100000, 0.25)
+dist <- 'geometric'
+get_dist_params(dist,geom_data)
+get_kstest(dist,geom_data)
+```
+
+
+**Multinomial Distribution**
+```{r}
+p = c(0.2,0.3,0.5)
+data <- rmultinom(1000,c(1,2,7),p) 
+dist <- 'multinomial'
+get_dist_params(dist, data)
+#Bayesian
+#prior distribution parameters
+palpha=p
+x=c(1,2,7)
+#posterior parameters
+poalpha=palpha+x
+psample=rDirichlet(1000,poalpha)
+plot(density(psample),main='Multinomial')
+```
+
+**Multivariate Normal Distribution**
+```{r}
+Sum <- matrix(c(9,6,6,16),2,2)
+data <- mvrnorm(n = 10000, c(4, 5), Sum) 
+dist <- 'multivariate_normal'
+get_dist_params(dist, data)
+
+```
+
+**Normal Distribution**
+```{r}
+norm_data <- rnorm(1000, 0, 2) 
+dist <- 'normal'
+get_dist_params(dist,norm_data)
+get_kstest(dist,norm_data)
+#Bayesian
+set.seed(12345)
+norm<-runif(1000)
+#prior distribution parameters
+palpha=0.1
+pbeta=0.1
+mu=0.1
+t=1/var(norm)
+r=0.01
+#posterior parameters
+#conditional
+pomu=(t*mu+length(norm)*mean(norm)*r)/(t+length(norm)*r)
+pot=(t+length(norm))*r
+psample1=rnorm(1000,pomu,1/sqrt(pot))
+plot(density(psample1),main='Conditional_Normal')
+#Marginal
+poalpha=palpha+length(norm)/2
+pobeta=pbeta+(var(norm)*length(norm))/2+(t*length(norm)*(mean(norm)-mu)**2)/(2*(t+length(norm)))
+psample2=rgamma(1000,poalpha,pobeta)
+plot(density(psample2),main='Marginal_Normal')
+```
+
+**Poisson Distribution**
+```{r}
+options(warn=-1)
+poisson_data <- rpois(1000, 1) 
+dist <- 'poisson' 
+    
+get_dist_params(dist,poisson_data)
+get_kstest(dist,poisson_data)
+#Bayesian
+#prior distribution parameters
+palpha=1
+pbeta=1
+#posterior parameters
+poalpha=palpha+sum(poisson_data)
+pobeta=pbeta+length(poisson_data)
+psample=rgamma(1000,poalpha,pobeta)
+plot(density(psample),main='Poisson')
+```
+**Uniform Distribution**
+```{r}
+options(warn=-1)
+uniform_data <- runif(1000000, 1, 100) 
+dist <- 'uniform' 
+get_dist_params(dist,uniform_data)
+get_kstest(dist,uniform_data)
+```
+
+
+
+
+
+
+
+
+
+
+
+

@@ -1,0 +1,267 @@
+---
+title: 'Assignment 4: Bootstrap and Jackknife'
+author: 'GROUP PROJECT: SriKaavya Toodi(st938), Rithvik (ra830),Aravind reddy(ad1452),Sowmya(sa1607)'
+date: "03/10/2020"
+output:
+  pdf_document: default
+  word_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Build a bias, standard deviation, and  confidence interval estimator for an arbitrary statistic (named statfunc) based on the bootstrap (use 10000 =nboot) and the jackknife
+
+# bootstrap function
+```{r Bootstrap}
+bootstrap <-function(vec0,statfunc=mean,nboot=10000,alpha=0.05)
+{
+  #Extracting sample size, mean and standard deviation from the original data
+  n0<-length(vec0) 
+  mean0<-mean(vec0)
+  
+  jack = Jackknife(vec0,statfunc) #Jackknife function is called over here with input vector Vec0
+  sd0<-jack$jacksd #jackknife Standard Deviation
+  bias0<-jack$jackbias #jackknife bias
+  
+  #create a vector to store the location of the bootstrap studentized deviation vector
+
+  boot_pivot_vec<-NULL #vector for the bootpivotal values
+  boot_bias_vec<-NULL #vector for the bootbias values 
+  jacck_bias_vec<-NULL #vector for the jackbias values 
+  jack_sd_vec<-NULL #vector for the jacksd values 
+  boot_percentile_vec<-NULL #vector for the bootpercentile values 
+  
+  
+  for(i in 1:nboot)
+  { 
+    vecb<-sample(vec0,replace=T) 
+    meanb<-statfunc(vecb)
+    sdb<-Jackknife(vecb,statfunc)$jacksd
+    boot_pivot_vec<-c(boot_pivot_vec,(meanb-mean0)/(sdb/sqrt(n0))) 
+    boot_bias_vec<-c(boot_bias_vec,meanb-mean0) 
+    boot_percentile_vec = c(boot_percentile_vec,meanb)
+  }
+  
+  # bias in the statistic
+  bootbias<-mean(boot_bias_vec)
+  
+  
+  #Calculating lower and upper quantile of the bootstrap distribution
+  lq<-quantile(boot_pivot_vec,alpha/2)
+  uq<-quantile(boot_pivot_vec,1-alpha/2)
+  
+  lqpercentile = quantile(boot_percentile_vec,alpha/2)
+  uqpercentile = quantile(boot_percentile_vec, 1-alpha/2)
+  
+  sdboot = sd(boot_percentile_vec) 
+  LB<-mean0-(sd0/sqrt(n0))*uq
+  UB<-mean0-(sd0/sqrt(n0))*lq
+  
+  LBpercentile<-lqpercentile
+  UBpercentile<-uqpercentile
+  
+  NLB<-mean0-(sd0/sqrt(n0))*qt(1-alpha/2,n0-1)
+  NUB<-mean0+(sd0/sqrt(n0))*qt(1-alpha/2,n0-1)
+  
+  BNCLB = mean0 -sdboot*qt(1-alpha/2,n0-1)
+  BNCUB = mean0 +sdboot*qt(1-alpha/2,n0-1)
+  
+  list(bootstrap.pivotal.confidence.interval=c(LB,UB),normal.confidence.interval.jackknife=
+c(NLB,NUB),
+
+bootstrap.percentile.confidence.interval=c(LBpercentile,UBpercentile),boot.normal.confidence.interval = c(BNCLB,BNCUB),bootbias=bootbias,jackbias = bias0) 
+}
+```
+
+# Jackknife Function
+```{r Jackknife}
+Jackknife<-function(v1,statfunc=sd){
+  
+  n1<-length(v1) 
+  jackvec<-NULL
+  mu0<-statfunc(v1) 
+  
+  for(i in 1:n1)
+  { 
+    mua<-statfunc(v1[-i]) 
+    jackvec<-c(jackvec, n1*(mu0)-(n1-1)*mua) 
+  } 
+  
+  jackbias<-mean(jackvec)-mu0
+  jacksd<-sd(jackvec) 
+  
+  list(mu0=mu0,jackbias=jackbias,jacksd=jacksd)
+}
+
+```
+
+# Simulation Function
+```{r SimFunc}
+Sim.func<-function(mu.val=3,n=30,nsim=1000)
+{
+ #empty vectors for the bootstrap, normal and Jackknife confidence interval
+ cvec.boot_pivotal<-NULL #coverage vector for boot pivotal confidence interval
+ cvec.norm_jackknife<-NULL #coverage vector for normal confidence interval(jackknife)
+ cvec.boot_normal<-NULL #coverage vector for boot normal confidence interval
+ cvec.boot_percentile = NULL #coverage vector for boot percentile confidence interval
+
+ #Calculating the mean of the lognormal distribution
+ mulnorm<-(exp(mu.val+1/2))
+ 
+ #run simulation
+ for(i in 1:nsim){ #i is current simulation number
+
+ if((i/10)==floor(i/100)){ print(i)
+ #let me know computer hasn’t died
+ }
+
+ #sample the simulation vector
+ vec.sample<-rlnorm(n,mu.val)
+
+ #bootstrap it
+ boot.trial<-bootstrap(vec.sample) #Call for the bootstrap function to obtain required confidence intervals
+
+ boot_pivotal.conf<-boot.trial$bootstrap.pivotal.confidence.interval
+ norm_jackknife.conf<-boot.trial$normal.confidence.interval.jackknife
+ boot_percentile.conf<-boot.trial$bootstrap.percentile.confidence.interval
+ boot_normal.conf<-boot.trial$boot.normal.confidence.interval
+
+ #calculate if confidence intervals include mu
+
+ #count up the coverage by the bootstrap pivotal interval
+ cvec.boot_pivotal<-
+c(cvec.boot_pivotal,(boot_pivotal.conf[1]<mulnorm)*(boot_pivotal.conf[2]>mulnorm))
+
+ #count up the coverage by the normal confidence interval(jackknife)
+ cvec.norm_jackknife <- c(cvec.norm_jackknife,(norm_jackknife.conf[1]<mulnorm)*(norm_jackknife.conf[2]>mulnorm))
+
+ #count up the coverage by the bootstrap percentile interval
+ cvec.boot_percentile<- c(cvec.boot_percentile,(boot_percentile.conf[1]<mulnorm)*(boot_percentile.conf[2]>mulnorm))
+
+ #count up the coverage by the bootstrap normal interval
+ cvec.boot_normal<-
+c(cvec.boot_normal,(boot_normal.conf[1]<mulnorm)*(boot_normal.conf[2]>mulnorm))
+ }
+ #calculate and output coverage probability estimates
+list(boot_pivotal.coverage=(sum(cvec.boot_pivotal)/nsim),norm_jackknife.coverage=(sum(cvec.norm_jackknife)/nsim),
+
+boot_percentile.coverage=(sum(cvec.boot_percentile)/nsim),boot_normal.coverage=(sum(cvec.boot_normal)/nsim)) 
+}
+```
+
+The above function calls the bootstrap and Jackknife function nsim times.
+
+The lower and upper bound for the 4 confidence intervals are obtained. 
+
+
+```{r Sim1}
+#Sim for n=10
+Sim.func(3,10,1000)
+```
+
+```{r Sim2}
+#Sim for n=30
+Sim.func(3,30,1000)
+```
+
+```{r Sim3}
+#Sim for n=100
+Sim.func(3,100,1000)
+```
+
+
+
+
+## Estimate the bias by computing the difference between the standard deviation of the sample data and the standard deviation of the original data.
+
+# bootstrap:
+
+```{r BootBiasEst}
+BootstrapBias<-function(vec0,nsim=1000)
+{
+  n0<-length(vec0) 
+  mean0<-mean(vec0)
+  sd0<-sqrt(var(vec0)) 
+  
+  bootvec<-NULL
+  bootbiasvec<-NULL 
+  
+  for(i in 1:n0){
+    vecb<-sample(vec0,replace=T) 
+    nb<-length(vecb)
+    meanb<-mean(vecb)
+    sdb<-sqrt(var(vecb))
+  }
+	
+  final_bias_boot<-(sdb/nb)-(sd0/n0) #nsim is no.of simulations
+
+	list(bootstrap_bias = final_bias_boot)
+}
+```
+
+
+### Next, for Jackknife:
+```{r JackBiasEst}
+JackknifeBias<-function(v1,statfunc=sd,nsim=1000)
+{
+  n1<-length(v1) 
+  jack_vec<-NULL 
+  mu0<-statfunc(v1) 
+  for(i in 1:n1){
+    mua<-statfunc(v1[-i])
+    jack_vec<-c(jack_vec, n1*(mu0)-(n1-1)*mua) 
+  }
+  jackbias <- mean(jack_vec)-mu0
+  jacksd<-sd(jack_vec)
+
+  final_bias_jack<-(jacksd/n1)-(mu0/n1) #nsim is no.of simulations
+  list(jackknife_bias = final_bias_jack)
+}
+```
+
+
+
+# Calling the functions with sample data
+```{r BootVsJackBiasComp}
+Sim.bias<-function(mu.val=3,n=30,nsim=1000)
+{
+  biasBootstrap<-NULL
+  biasJackknife<-NULL
+  
+  #run simulation
+  for(i in 1:nsim)
+  {
+    vec.sample<-rlnorm(n,mu.val) 
+    
+    boot.list<-BootstrapBias(vec.sample) 
+    jack_knife.list<-JackknifeBias(vec.sample) 
+    
+    biasBootstrap<-c(biasBootstrap,boot.list$bootstrap_bias)
+    biasJackknife<-c(biasJackknife,jack_knife.list$jackknife_bias)
+  }
+  
+  list(biasBoot = biasBootstrap, biasJack = biasJackknife)
+}
+```
+
+# Running the Simulations function
+```{r BiasCompSim}
+var<-Sim.bias(3,30,1000)
+var
+```
+
+
+```{r BootPlot}
+# Line Plot
+
+d <- var$biasBoot
+dj <-var$biasJack
+
+plot(d,main ="Comparision between the bootstrap and the jacknife bias",type="l",col="red")
+lines(dj,col="blue")
+```
+
+
+

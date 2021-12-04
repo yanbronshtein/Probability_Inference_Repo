@@ -1,6 +1,6 @@
 ---
 title: "Probability and Inference HW 3b"
-author: "Yaniv Bronshtein(yb262), Vipul Ishwarchandra Gharde(vig4), Animesh Sharma(as3592),Wanying Mo(wm318), Fan Shen FS470,   "
+author: "Yaniv Bronshtein(yb262), Vipul Ishwarchandra Gharde(vig4), Animesh Sharma(as3592),Wanying Mo(wm318), Fan Shen(FS470), Toshitt Ahuja(ta498), Venkata Datla(vkd 20), Aditya Maheshwari(am2971)"
 date: "11/8/2021"
 output: pdf_document
 ---
@@ -110,21 +110,44 @@ get_dist_params <- function(dist, data) {
 }
 ```
 
-# Let's test it now
-**Bernoulli with size 1**
+**Bernoulli Distribution**
 ```{r}
-# Bernoulli is Binomial with size as 1
 bernoulli_data <- rbinom(1000, 1, 0.75) 
 dist <- 'Bernoulli' 
 get_dist_params(dist,bernoulli_data)
 ```
+
+**Beta Distribution**
+```{r}
+beta_data <- rbeta(10000, 2, 8) 
+dist <- 'beta' 
+get_dist_params(dist,beta_data)
+
+```
+
+
 **Binomial Distribution**
 ```{r}
-#Binomial distribution
 binom_data <- rbinom(100, 1000, 0.75) 
 dist <- 'Binomial' 
 get_dist_params(dist,binom_data)
 ```
+
+**Exponential Distribution**
+```{r}
+exp_data <- rexp(100000, 5) 
+dist <- 'exponential'
+get_dist_params(dist,exp_data)
+```
+
+**Gamma Distribution**
+```{r}
+gamma_data <- rgamma(10000, 2, 3) 
+dist <- 'gamma' 
+get_dist_params(dist,gamma_data)
+
+```
+
 **Geometric Distribution**
 ```{r}
 geom_data <- rgeom(100000, 0.25) 
@@ -132,6 +155,30 @@ dist <- 'geometric'
 get_dist_params(dist,geom_data)
 ```
 
+
+**Multinomial Distribution**
+```{r}
+p = c(0.20,0.40,0.05,0.30)
+data <- rmultinom(10000,size=4,p) 
+dist <- 'multinomial'
+get_dist_params(dist, data)
+```
+
+**Multivariate Normal Distribution**
+```{r}
+Sum <- matrix(c(9,6,6,16),2,2)
+data <- mvrnorm(n = 10000, c(4, 5), Sum) 
+dist <- 'multivariate_normal'
+get_dist_params(dist, data)
+
+```
+
+**Normal Distribution**
+```{r}
+norm_data <- rnorm(100000, 20, 2) 
+dist <- 'normal'
+get_dist_params(dist,norm_data)
+```
 
 **Poisson Distribution**
 ```{r}
@@ -147,50 +194,14 @@ dist <- 'uniform'
 get_dist_params(dist,uniform_data)
 ```
 
-**Normal Distribution**
-```{r}
-norm_data <- rnorm(100000, 20, 2) 
-dist <- 'normal'
-get_dist_params(dist,norm_data)
-```
-
-**Exponential Distribution**
-```{r}
-exp_data <- rexp(100000, 5) 
-dist <- 'exponential'
-get_dist_params(dist,exp_data)
-```
-```{r}
-gamma_data <- rgamma(10000, 2, 3) 
-dist <- 'gamma' 
-get_dist_params(dist,gamma_data)
-
-```
-
-**Beta Distribution**
-```{r}
-beta_data <- rbeta(10000, 2, 8) 
-dist <- 'beta' 
-get_dist_params(dist,beta_data)
-
-```
-
-**Multinomial Distribution**
-```{r}
-p = c(0.20,0.40,0.05,0.30)
-data <- rmultinom(10000,size=4,p) 
-dist <- 'multinomial'
-get_dist_params(dist, data)
-```
 
 
-**Multivariate Normal Distribution**
-```{r}
-# Multi variate normal distribution
-Sum <- matrix(c(9,6,6,16),2,2)
-data <- mvrnorm(n = 10000, c(4, 5), Sum) 
-dist <- 'multivariate_normal'
-get_dist_params(dist, data)
 
-```
+
+
+
+
+
+
+
 

@@ -1,0 +1,180 @@
+---
+title: "Assignment 3c"
+output: html_document
+author: Animesh Sharma (as3592),Yaniv Bronshtein(yb262),Wanying Mo(wm318), Venkata Krishnam Raju Dalta(vkd20), Vipul Gharde(vig4), Aditya Maheshwari(am2971), Toshitt Ahuja(ta498), Fan Shen(fs470)
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+Using the ks.test, Durbin approach
+
+Build a goodness of fit test for each distribution using the parametric bootstrap based on maximum likelihood
+
+for every instance in the MOM and MLE estimator program
+
+Test using a sample size of 100 for each distribution
+
+Make sure to test against both the correct distribution and an one of the wrong distributions! for each case
+
+```{r}
+# library(graphics)
+require(graphics)
+
+```
+
+**Beta Distribution**
+```{r}
+options(warn=-1)
+beta_data <- rbeta(10000, 2, 8) 
+g <- c(0)
+d0 = ks.test(beta_data,"pbeta",2, 8)$statistic
+##########MLE for beta##########
+x <- beta_data; a2 <- 1; b2 <- 1
+    for (i in 1:20){
+    # Matrices to hold estimates
+      estim <- matrix(c(a2,b2), nrow=2)
+    # Compute the partials with respect to alpha and beta 
+      f<- matrix(c(digamma(a2+b2) - digamma(a2) + mean(log(x)),
+                   digamma(a2+b2)- digamma(b2)+ mean(log(1-x))), nrow=2) 
+      
+      # Compute partial derivatives by solving the Jacobian matrix
+      J <- solve(matrix(c(trigamma(a2+b2)-trigamma(a2), 
+                          trigamma(a2+b2), trigamma(a2+b2),
+                          trigamma(a2+b2)-trigamma(b2)), nrow=2,ncol=2)) 
+      
+      f2 <- estim - J%*%f
+      a2 <- f2[1,]
+      b2 <- f2[2,]
+    }
+########END MLE Beta###########
+for(i in 1:100){
+  yboot = rbeta(100000, a2, b2)
+  d[i] = ks.test(yboot,"pbeta",a2,b2)$statistic  #test against beta (correct dist)
+  g[i] = ks.test(yboot,"pgamma",a2,b2)$statistic #test against gamma
+}
+cat("d0 = ",d0,";d*mean = ", mean(d), ";wrong d mean with gamma = ", mean(g))
+
+```
+
+**Exponential Distribution**
+```{r}
+options(warn=-1)
+exp_data <- rexp(100000, 5) 
+g <- c(0)
+d0 = ks.test(exp_data,"pexp",5)$statistic
+a <- 1/mean(exp_data)
+for(i in 1:100){
+  yboot = rexp(100000, a)
+  d[i] = ks.test(yboot,"pexp",a)$statistic
+  g[i] = ks.test(yboot,"ppois",a)$statistic #test against poission
+}
+cat("d0 = ",d0,";d*mean = ", mean(d), ";wrong d mean with poission = ", mean(g))
+
+
+```
+**Geometric Distribution**
+```{r}
+options(warn=-1)
+geom_data <- rgeom(100000, 0.25) 
+g <- c(0)
+d0 = ks.test(geom_data,"pgeom",0.35)$statistic
+p <- 1/mean(geom_data)
+for(i in 1:100){
+  yboot = rexp(100000, p)
+  d[i] = ks.test(yboot,"pgeom",p)$statistic
+ # g[i] = ks.test(yboot,"ppois",a)$statistic #test against poission
+}
+cat("d0 = ",d0,";d*mean = ", mean(d))
+###########question##########
+#d0 seems unusually large and corresponds exactly to the argument giveng in the d0 ks.test. Can you ask professor if I'm using the ks.test wrong here?
+#Specifically the documentation mentions using ECDF functions (the "pxxxx" argument in ks.test). I'm having trouble finding a documentation explaining the usage of those.
+############question###########
+```
+**Multinomial Distribution**
+```{r}
+p = c(0.20,0.40,0.05,0.30)
+data <- rmultinom(10000,size=4,p) 
+d0 = ks.test(data,"pmultinom",size=4,p)$statistic
+#######MLE########
+n_row <- nrow(data); prob <- c(0,0,0,0);  
+p <- data/length(data) 
+prob <- rowSums(p)
+#######END MLE######
+for(i in 1:100){
+  yboot = rmultinom(10000,size = 4, p)
+  d[i] = ks.test(yboot,"pmultinom",size = 4, p)$statistic
+}
+cat("d0 = ",d0,";d*mean = ", mean(d))
+```
+
+
+**Let's look at an example of ks.test()**
+```{r}
+x <- rnorm(50)
+y <- runif(30)
+
+```
+
+
+**Verdict: x and y do not come from the same distribution**
+```{r}
+# Do x and y come from the same distribution?
+ks.test(x, y)
+```
+```{r}
+# Does x come from a shifted gamma distribution with shape 3 and rate 2?
+ks.test(x+2, "pgamma", 3, 2) # two-sided, exact
+```
+
+```{r}
+ks.test(x+2, "pgamma", 3, 2, exact = FALSE)
+```
+
+H0: x+2 not greater than gamma distribution with shape 3 and rate 2
+H1: x+2 is greater than gamma distribution with shape 3 and rate 2
+Verdict: Fail to reject null hypothesis
+```{r}
+ks.test(x+2, "pgamma", 3, 2, alternative = "gr")
+```
+
+stochastic order quantifies the concept of one random variable being "bigger" than another.
+
+```{r}
+# test if x is stochastically larger than x2
+x2 <- rnorm(50, -1) #mean=-1, sd=1
+```
+
+**Let's plot the ecdf() function for x. Empirical Distribution Function**
+```{r}
+par(mfrow=c(1,2))
+plot(ecdf(x), xlim = range(c(x, x2)))
+plot(ecdf(x2), ann = TRUE, lty = "dashed")
+
+```
+
+**Let's plot the ecdf() function for x2. Empirical Distribution Function**
+```{r}
+plot(ecdf(x2), ann = TRUE, lty = "dashed")
+
+```
+
+**T-test between x and x2**
+**Verdict: Reject null hypothesis because mean(x) = -.06461931 and mean(x2)=-.99139101
+```{r}
+t.test(x, x2, alternative = "g")
+```
+
+**Wilcox Test between x and x2**
+```{r}
+wilcox.test(x, x2, alternative = "g")
+```
+
+```{r}
+ks.test(x, x2, alternative = "l")
+```
+ 
+```{r}
+ks.test(x, x2, alternative = "gr")
+```
